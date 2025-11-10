@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class BlogController extends Controller
 {
@@ -95,19 +96,27 @@ class BlogController extends Controller
                     continue;
                 }
 
-                // Store original image
-                $originalImagePath = $image->store('blog-images', 'public');
+                // Generate folder structure based on current date
+                $currentDate = Carbon::now();
+                $year = $currentDate->year;
+                $month = $currentDate->month;
+                $day = $currentDate->day;
+                
+                $folderPath = "blog-images/{$year}/{$month}/{$day}";
+                
+                // Store original image with organized path
+                $originalImagePath = $image->store($folderPath, 'public');
                 Log::info("Original image uploaded: " . $originalImagePath);
                 
-                // Create desktop version
-                $desktopImagePath = $this->createResizedVersion($originalImagePath, $desktop_size, 'desktop');
+                // Create desktop version with organized path
+                $desktopImagePath = $this->createResizedVersion($originalImagePath, $desktop_size, 'desktop', $folderPath);
                 if ($desktopImagePath) {
                     $block['desktop_image'] = $desktopImagePath;
                     Log::info("Desktop image created: " . $desktopImagePath . " with size: " . $desktop_size);
                 }
                 
-                // Create mobile version
-                $mobileImagePath = $this->createResizedVersion($originalImagePath, $mobile_size, 'mobile');
+                // Create mobile version with organized path
+                $mobileImagePath = $this->createResizedVersion($originalImagePath, $mobile_size, 'mobile', $folderPath);
                 if ($mobileImagePath) {
                     $block['mobile_image'] = $mobileImagePath;
                     Log::info("Mobile image created: " . $mobileImagePath . " with size: " . $mobile_size);
@@ -135,7 +144,7 @@ class BlogController extends Controller
     /**
      * Create resized version of an image
      */
-    private function createResizedVersion($originalImagePath, $size, $type = 'desktop')
+    private function createResizedVersion($originalImagePath, $size, $type = 'desktop', $folderPath = '')
     {
         $fullPath = storage_path('app/public/' . $originalImagePath);
         
@@ -220,10 +229,19 @@ class BlogController extends Controller
             return false;
         }
 
-        // Generate new filename for resized version
+        // Generate new filename for resized version with organized path
         $pathInfo = pathinfo($originalImagePath);
-        $resizedFilename = $pathInfo['filename'] . '_' . $type . '_' . $size . '.' . $pathInfo['extension'];
-        $resizedPath = $pathInfo['dirname'] . '/' . $resizedFilename;
+        $filename = $pathInfo['filename'];
+        $extension = $pathInfo['extension'];
+        
+        // Create the organized folder if it doesn't exist
+        $resizedFolderPath = 'public/' . $folderPath;
+        if (!Storage::exists($resizedFolderPath)) {
+            Storage::makeDirectory($resizedFolderPath);
+        }
+        
+        $resizedFilename = $filename . '_' . $type . '_' . $size . '.' . $extension;
+        $resizedPath = $folderPath . '/' . $resizedFilename;
         $fullResizedPath = storage_path('app/public/' . $resizedPath);
 
         // Save the resized image
@@ -242,6 +260,7 @@ class BlogController extends Controller
 
         if ($saveSuccess) {
             Log::info($type . " RESIZE SUCCESS: " . $width . "x" . $height . " -> " . $newWidth . "x" . $newHeight);
+            Log::info("Resized image saved at: " . $resizedPath);
             return $resizedPath;
         } else {
             Log::error("Failed to save " . $type . " resized image");
@@ -308,19 +327,27 @@ class BlogController extends Controller
 
                 $image = $request->file("images." . $index);
                 
-                // Store original image
-                $originalImagePath = $image->store('blog-images', 'public');
+                // Generate folder structure based on current date
+                $currentDate = Carbon::now();
+                $year = $currentDate->year;
+                $month = $currentDate->month;
+                $day = $currentDate->day;
+                
+                $folderPath = "blog-images/{$year}/{$month}/{$day}";
+                
+                // Store original image with organized path
+                $originalImagePath = $image->store($folderPath, 'public');
                 Log::info("New original image uploaded: " . $originalImagePath);
                 
-                // Create desktop version
-                $desktopImagePath = $this->createResizedVersion($originalImagePath, $desktop_size, 'desktop');
+                // Create desktop version with organized path
+                $desktopImagePath = $this->createResizedVersion($originalImagePath, $desktop_size, 'desktop', $folderPath);
                 if ($desktopImagePath) {
                     $processedBlock['desktop_image'] = $desktopImagePath;
                     Log::info("New desktop image created: " . $desktopImagePath);
                 }
                 
-                // Create mobile version
-                $mobileImagePath = $this->createResizedVersion($originalImagePath, $mobile_size, 'mobile');
+                // Create mobile version with organized path
+                $mobileImagePath = $this->createResizedVersion($originalImagePath, $mobile_size, 'mobile', $folderPath);
                 if ($mobileImagePath) {
                     $processedBlock['mobile_image'] = $mobileImagePath;
                     Log::info("New mobile image created: " . $mobileImagePath);
